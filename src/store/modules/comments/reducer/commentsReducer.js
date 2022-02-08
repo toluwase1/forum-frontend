@@ -1,6 +1,5 @@
-import API_ROUTE from "../../../../apiRoute";
-import axios from "axios";
 import {
+  BEFORE_STATE_COMMENT,
   COMMENT_CREATE_SUCCESS,
   COMMENT_CREATE_ERROR,
   GET_COMMENTS_SUCCESS,
@@ -9,100 +8,121 @@ import {
   COMMENT_DELETE_ERROR,
   COMMENT_UPDATE_SUCCESS,
   COMMENT_UPDATE_ERROR,
-  BEFORE_STATE_COMMENT,
 } from "../commentTypes";
-import { history } from "../../../../history";
 
-export const fetchComments = (id) => {
-  return async (dispatch) => {
-    dispatch({ type: BEFORE_STATE_COMMENT });
-
-    try {
-      const res = await axios.get(`${API_ROUTE}/comments/${id}`);
-      dispatch({
-        type: GET_COMMENTS_SUCCESS,
-        payload: {
-          postID: id,
-          comments: res.data.response,
-        },
-      });
-    } catch (err) {
-      dispatch({ type: GET_COMMENTS_ERROR, payload: err.response.data.error });
-    }
-  };
+export const initState = {
+  commentItems: [],
+  isLoading: false,
+  commentSuccess: false,
 };
 
-export const createComment = (details, commentSuccess) => {
-  return async (dispatch) => {
-    dispatch({ type: BEFORE_STATE_COMMENT });
-    try {
-      const res = await axios.post(
-        `${API_ROUTE}/comments/${details.post_id}`,
-        details
-      );
+export const commentsState = (state = initState, action) => {
+  const { payload, type } = action;
+  switch (type) {
+    case BEFORE_STATE_COMMENT:
+      return {
+        ...state,
+        commentsError: null,
+        isLoading: true,
+        commentSuccess: false,
+      };
 
-      dispatch({
-        type: COMMENT_CREATE_SUCCESS,
-        payload: {
-          postID: details.post_id,
-          comment: res.data.response,
-        },
-      });
-      commentSuccess();
-      history.push(`/posts/${details.post_id}`);
-    } catch (err) {
-      dispatch({
-        type: COMMENT_CREATE_ERROR,
-        payload: err.response.data.error,
-      });
-    }
-  };
-};
+    case GET_COMMENTS_SUCCESS:
+      return {
+        ...state,
+        commentItems: [
+          ...state.commentItems,
+          { postID: payload.postID, comments: payload.comments },
+        ],
+        isLoading: false,
+        commentsError: null,
+      };
 
-export const updateComment = (updateDetails, updateSuccess) => {
-  return async (dispatch) => {
-    dispatch({ type: BEFORE_STATE_COMMENT });
+    case GET_COMMENTS_ERROR:
+      return {
+        ...state,
+        commentError: payload,
+        isLoading: false,
+      };
 
-    try {
-      const res = await axios.put(
-        `${API_ROUTE}/comments/${updateDetails.id}`,
-        updateDetails
-      );
-      dispatch({
-        type: COMMENT_UPDATE_SUCCESS,
-        payload: {
-          comment: res.data.response,
-        },
-      });
-      updateSuccess();
-    } catch (err) {
-      dispatch({
-        type: COMMENT_UPDATE_ERROR,
-        payload: err.response.data.error,
-      });
-    }
-  };
-};
+    case COMMENT_CREATE_SUCCESS:
+      return {
+        ...state,
+        commentItems: state.commentItems.map((commentItem) =>
+          Number(commentItem.postID) === payload.postID
+            ? {
+                ...commentItem,
+                comments: [payload.comment, ...commentItem.comments],
+              }
+            : commentItem
+        ),
+        message: "The comment is added",
+        isLoading: false,
+        commentSuccess: true,
+      };
 
-export const deleteComment = (details, deleteSuccess) => {
-  return async (dispatch) => {
-    dispatch({ type: BEFORE_STATE_COMMENT });
+    case COMMENT_CREATE_ERROR:
+      return {
+        ...state,
+        commentsError: payload,
+        isLoading: false,
+        commentSuccess: false,
+      };
 
-    try {
-      await axios.delete(`${API_ROUTE}/comments/${details.id}`);
-      dispatch({
-        type: COMMENT_DELETE_SUCCESS,
-        payload: {
-          id: details.id,
-          postID: details.postID,
-        },
-      });
-      deleteSuccess();
-    } catch (err) {
-      dispatch({
-        type: COMMENT_DELETE_ERROR,
-        payload: err.response.data.error,
-      });
-    }
-  };
+    case COMMENT_UPDATE_SUCCESS:
+      return {
+        ...state,
+        commentItems: state.commentItems.map((commentItem) =>
+          Number(commentItem.postID) === payload.comment.post_id
+            ? {
+                ...commentItem,
+                comments: commentItem.comments.map((comment) =>
+                  comment.id === payload.comment.id
+                    ? { ...comment, body: payload.comment.body }
+                    : comment
+                ),
+              }
+            : commentItem
+        ),
+        commentsError: null,
+        isLoading: false,
+        commentSuccess: true,
+      };
+
+    case COMMENT_UPDATE_ERROR:
+      return {
+        ...state,
+        commentsError: payload,
+        isLoading: false,
+        commentSuccess: false,
+      };
+
+    case COMMENT_DELETE_SUCCESS:
+      return {
+        ...state,
+        commentItems: state.commentItems.map((commentItem) =>
+          Number(commentItem.postID) === payload.postID
+            ? {
+                ...commentItem,
+                comments: commentItem.comments.filter(
+                  ({ id }) => id !== payload.id
+                ),
+              }
+            : commentItem
+        ),
+        commentsError: null,
+        isLoading: false,
+        commentSuccess: true,
+      };
+
+    case COMMENT_DELETE_ERROR:
+      return {
+        ...state,
+        commentsError: payload,
+        isLoading: false,
+        commentSuccess: false,
+      };
+    default:
+      return state;
+  }
 };
