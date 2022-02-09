@@ -53,7 +53,7 @@ const Register = () => {
       </div>
       <div className="container Auth">
         <Card className="card-style">
-          <CardHeader>Welcome To SeamFlow</CardHeader>
+          <CardHeader>Welcome to Go Forums</CardHeader>
           <CardBody>
             <form onSubmit={submitUser}>
               <FormGroup>
